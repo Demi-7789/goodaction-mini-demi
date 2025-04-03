@@ -15,9 +15,10 @@ export default async function ProgramsPage() {
       .select('user_type')
       .eq('id', user.id)
       .single();
-    isNonProfit = profile?.user_type === 'nonprofit'; // Adjust based on your role system
+    isNonProfit = profile?.user_type === 'nonprofit';
   }
 
+  // Get all programs (no filtering for unauthenticated users)
   const { data: programs } = await supabase
     .from('programs')
     .select('*')
@@ -26,22 +27,24 @@ export default async function ProgramsPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Your Programs</h1>
+        <h1 className="text-2xl font-bold">
+          {user ? 'Your Programs' : 'All Programs'}
+        </h1>
         {isNonProfit && (
-            <>
           <Link
             href="/dashboard/programs/new"
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Create New Program
           </Link>
-          </>
         )}
       </div>
 
       {programs?.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-gray-500">You haven't created any programs yet.</p>
+          <p className="text-gray-500">
+            {user ? 'You haven\'t created any programs yet.' : 'No programs available yet.'}
+          </p>
         </div>
       ) : (
         <div className="grid gap-6">

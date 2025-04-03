@@ -9,33 +9,67 @@ import { revalidatePath } from "next/cache";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  const organizationName = formData.get("name")?.toString();
+  const userType = formData.get("user_type")?.toString() || 'nonprofit';
+  
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
-  if (!email || !password) {
+  if (!email || !password || !organizationName) {
     return encodedRedirect(
       "error",
       "/sign-up",
-      "Email and password are required",
+      "Email, password, and organization name are required",
     );
   }
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback`,
-    },
-  });
+  try {
+    // First sign up the user
+    const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${origin}/auth/callback`,
+      },
+    });
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
-  } else {
+    if (signUpError) {
+      console.error(signUpError.code + " " + signUpError.message);
+      return encodedRedirect("error", "/sign-up", signUpError.message);
+    }
+
+    // Then create a profile record
+    if (user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          email: user.email,
+          organization_name: organizationName,
+          user_type: userType,
+        });
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        return encodedRedirect(
+          "error",
+          "/sign-up",
+          "Account created but profile setup failed. Please contact support.",
+        );
+      }
+    }
+
     return encodedRedirect(
       "success",
       "/sign-up",
       "Thanks for signing up! Please check your email for a verification link.",
+    );
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "An unexpected error occurred. Please try again.",
     );
   }
 };
@@ -54,7 +88,7 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  return redirect("/protected");
+  return redirect("/dashboard/programs");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
