@@ -6,11 +6,11 @@ import { format } from 'date-fns';
 import StatusBadge from '@/components/status-badge';
 import { ShowMoreText } from '@/components/show-more-text';
 
-export default async function InitiativeDetailsPage({
-  params: { initiativeId },
-}: {
-  params: { initiativeId: string };
-}) {
+
+
+export default async function InitiativeDetailsPage({params}: {params: Promise<{ initiativeId: string }>}) {
+
+  const { initiativeId } = await params;
   const supabase = await createClient();
   
   // Get initiative details
