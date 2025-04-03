@@ -1,16 +1,43 @@
-import Hero from "@/components/hero";
-import ConnectSupabaseSteps from "@/components/tutorial/connect-supabase-steps";
-import SignUpUserSteps from "@/components/tutorial/sign-up-user-steps";
-import { hasEnvVars } from "@/utils/supabase/check-env-vars";
+// app/page.tsx
+import Link from 'next/link';
+import { createClient } from '@/utils/supabase/server';
 
 export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
-    <>
-      <Hero />
-      <main className="flex-1 flex flex-col gap-6 px-4">
-        <h2 className="font-medium text-xl mb-4">Next steps</h2>
-        {hasEnvVars ? <SignUpUserSteps /> : <ConnectSupabaseSteps />}
-      </main>
-    </>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <h1 className="text-4xl font-bold mb-8">Welcome to Our Platform</h1>
+      {user ? (
+        <Link 
+          href="/dashboard/programs" 
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Go to Dashboard
+        </Link>
+      ) : (
+        <div className="flex gap-4">
+          <Link 
+            href="/sign-in" 
+            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-gray-700"
+          >
+            Sign In
+          </Link>
+          <Link 
+            href="/sign-up" 
+            className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-700"
+          >
+            Sign Up
+          </Link>
+          <Link 
+            href="/dashboard/programs" 
+            className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-700"
+          >
+            See Programs
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }

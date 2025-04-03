@@ -4,6 +4,7 @@ import { encodedRedirect } from "@/utils/utils";
 import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
@@ -132,3 +133,97 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/sign-in");
 };
+
+export async function createProgram(prevState: any, formData: FormData) {
+  const supabase = await createClient();
+  
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return { error: 'You must be logged in to create a program' };
+  }
+
+  // Create program
+  const { error } = await supabase.from('programs').insert({
+    nonprofit_id: user.id,
+    title: formData.get('title'),
+    description: formData.get('description'),
+    sdg_goal: formData.get('sdg_goal'),
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/programs');
+  redirect('/dashboard/programs');
+}
+
+export async function createInitiative(prevState: any, formData: FormData) {
+  const supabase = await createClient();
+  
+  // Get current user
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user) {
+    return { error: 'You must be logged in to create an initiative' };
+  }
+
+  // Validate form data
+  const program_id = formData.get('program_id') as string;
+  const title = formData.get('title') as string;
+  const description = formData.get('description') as string;
+  const type = formData.get('type') as string;
+  const goal = formData.get('goal') as string;
+  const start_date = formData.get('start_date') as string;
+  const end_date = formData.get('end_date') as string;
+
+  if (!program_id || !title || !description || !type || !goal || !start_date || !end_date) {
+    return { error: 'All fields are required' };
+  }
+
+  // Validate dates
+  const startDate = new Date(start_date);
+  const endDate = new Date(end_date);
+  const today = new Date();
+  
+  if (startDate > endDate) {
+    return { error: 'End date must be after start date' };
+  }
+
+  // Determine status based on dates
+  let status = 'planned';
+  if (today >= startDate && today <= endDate) {
+    status = 'active';
+  } else if (today > endDate) {
+    status = 'completed';
+  }
+
+  try {
+    // Create initiative
+    const { error } = await supabase.from('initiatives').insert({
+      program_id,
+      title,
+      description,
+      type,
+      goal: type === 'volunteer' ? parseInt(goal) : parseFloat(goal),
+      start_date: start_date,
+      end_date: end_date,
+      status,
+      created_by: user.id,
+    });
+
+    if (error) {
+      console.error('Database error:', error);
+      return { error: error.message };
+    }
+
+    revalidatePath(`/dashboard/programs/${program_id}`);
+    redirect(`/dashboard/programs/${program_id}`);
+    
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return { error: 'An unexpected error occurred' };
+  }
+}
